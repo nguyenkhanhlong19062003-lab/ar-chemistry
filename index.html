@@ -2,10 +2,9 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>VR Hóa Học: Na + H2O (Chạy 100%)</title>
-    <!-- Thư viện A-Frame -->
+    <title>VR Hóa Học: Na + H2O (Bản Hoàn Hảo)</title>
+    <!-- Chỉ dùng đúng 1 thư viện A-Frame duy nhất, bỏ thư viện bên ngoài -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://unpkg.com/aframe-particle-system-component@1.1.3/dist/aframe-particle-system-component.min.js"></script>
     
     <style>
         #startScreen {
@@ -14,134 +13,193 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         #startBtn {
-            padding: 20px 40px; font-size: 20px; font-weight: bold; background: #2ed573; 
+            padding: 20px 40px; font-size: 20px; font-weight: bold; background: #0984e3; 
             color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
     </style>
 </head>
 <body>
 
-    <!-- Màn hình chờ để mở khóa Audio -->
+    <!-- Màn hình chờ bắt buộc để mở khóa Âm thanh -->
     <div id="startScreen">
-        <h2 style="color: white; font-family: sans-serif; text-align: center; margin-bottom: 20px;">Thí nghiệm: Natri + H2O</h2>
-        <button id="startBtn">BẮT ĐẦU THÍ NGHIỆM</button>
+        <h2 style="color: white; font-family: sans-serif; text-align: center; margin-bottom: 20px;">Thí nghiệm: Na + H2O</h2>
+        <p style="color: #ccc; font-family: sans-serif; margin-bottom: 20px;">(Có nước văng, bốc khói, nổ lớn)</p>
+        <button id="startBtn">CHẠM ĐỂ BẮT ĐẦU</button>
     </div>
 
     <!-- Môi trường 3D -->
     <a-scene vr-mode-ui="enabled: true">
         <a-sky color="#87CEEB"></a-sky>
+        
         <!-- Bàn thí nghiệm -->
-        <a-plane position="0 0 -2" rotation="-90 0 0" width="10" height="10" color="#576574"></a-plane>
-
+        <a-plane position="0 0 -2.5" rotation="-90 0 0" width="10" height="10" color="#576574"></a-plane>
         <a-light type="ambient" color="#ffffff" intensity="0.9"></a-light>
         <a-light type="directional" position="-1 2 1" intensity="0.5"></a-light>
 
-        <!-- Trạm thí nghiệm (Cách mắt 2 mét) -->
-        <a-entity id="lab-table" position="0 0.5 -2">
-            <!-- Chậu thủy tinh -->
-            <a-cylinder position="0 0 0" radius="1.2" height="0.4" color="#ffffff" opacity="0.2" material="side: double; transparent: true"></a-cylinder>
-            <!-- Nước (Dùng hình tròn mỏng để chống giật sọc Z-fighting) -->
-            <a-circle position="0 0.18 0" rotation="-90 0 0" radius="1.18" color="#3498db" opacity="0.85"></a-circle>
+        <!-- Trạm thí nghiệm -->
+        <a-entity id="lab-table" position="0 0.5 -2.5">
             
-            <!-- Vùng chứa viên Natri (Sẽ được tạo động bằng Code để không bị lỗi đồ họa) -->
+            <!-- Chậu thủy tinh (Có độ dày) -->
+            <a-cylinder position="0 0.2 0" radius="1.2" height="0.4" color="#ecf0f1" opacity="0.3" material="side: double; transparent: true"></a-cylinder>
+            
+            <!-- KHỐI NƯỚC (Rõ ràng, màu xanh đậm, có thể nhìn thấu) -->
+            <a-cylinder position="0 0.15 0" radius="1.15" height="0.3" color="#3498db" opacity="0.8" material="side: double; transparent: true"></a-cylinder>
+            
+            <!-- Vùng chứa viên Natri và Hạt khói/lửa -->
             <a-entity id="reaction-container"></a-entity>
+            <a-entity id="particle-container"></a-entity> <!-- Chứa khói, lửa, nước văng -->
         </a-entity>
 
+        <!-- Góc nhìn camera -->
         <a-camera position="0 1.6 0"></a-camera>
     </a-scene>
 
     <script>
-        // 1. Quản lý âm thanh bằng HTML5 Audio (Cách này an toàn tuyệt đối trên điện thoại)
+        // --- 1. HỆ THỐNG ÂM THANH CHUẨN HTML5 ---
         const soundSizzle = new Audio('https://actions.google.com/sounds/v1/water/simmering_water.ogg');
         soundSizzle.loop = true;
-        soundSizzle.volume = 0.8;
-        
+        soundSizzle.volume = 1.0;
         const soundBoom = new Audio('https://actions.google.com/sounds/v1/weapons/explosion_crunch.ogg');
         soundBoom.volume = 1.0;
 
         const startScreen = document.getElementById('startScreen');
         const startBtn = document.getElementById('startBtn');
         const container = document.getElementById('reaction-container');
+        const particleContainer = document.getElementById('particle-container');
 
-        // Bắt sự kiện bấm nút
+        let particleInterval;
+
         startBtn.addEventListener('click', () => {
             startScreen.style.display = 'none';
-
-            // Mở khóa chặn âm thanh của trình duyệt (Bắt buộc)
-            soundSizzle.play().then(() => { soundSizzle.pause(); }).catch(e => console.log("Audio unlock error"));
-            soundBoom.play().then(() => { soundBoom.pause(); soundBoom.currentTime = 0; }).catch(e => console.log("Audio unlock error"));
-
-            // Chờ 0.5s rồi bắt đầu
+            // Mở khóa âm thanh
+            soundSizzle.play().then(() => soundSizzle.pause()).catch(() => {});
+            soundBoom.play().then(() => { soundBoom.pause(); soundBoom.currentTime = 0; }).catch(() => {});
+            
             setTimeout(runExperiment, 500);
         });
 
-        // Hàm chạy thí nghiệm tự lặp lại
+        // --- 2. HỆ THỐNG TẠO HẠT (TỰ CODE - CHẠY 100% TRÊN MỌI MÁY) ---
+        function createParticle(color, startX, startY, startZ, endX, endY, endZ, duration, size) {
+            const p = document.createElement('a-sphere');
+            p.setAttribute('radius', size);
+            p.setAttribute('color', color);
+            p.setAttribute('position', `${startX} ${startY} ${startZ}`);
+            p.setAttribute('material', 'shader: flat; transparent: true; opacity: 1'); // flat để hạt phát sáng
+            
+            // Bay từ vị trí start đến end
+            p.setAttribute('animation__pos', `property: position; to: ${endX} ${endY} ${endZ}; dur: ${duration}; easing: easeOutQuad`);
+            // Mờ dần rồi biến mất
+            p.setAttribute('animation__fade', `property: material.opacity; to: 0; dur: ${duration}; easing: linear`);
+            
+            particleContainer.appendChild(p);
+            
+            // Tự dọn dẹp bộ nhớ sau khi bay xong
+            setTimeout(() => { if (p.parentNode) p.parentNode.removeChild(p); }, duration);
+        }
+
+        // --- 3. CÁC HIỆU ỨNG VẬT LÝ ---
+        function splashWater(x, y, z) {
+            // Nước bắn văng tung tóe (15 hạt xanh)
+            for(let i=0; i<15; i++) {
+                let dx = x + (Math.random() - 0.5) * 1.5;
+                let dy = y + (Math.random() * 0.8 + 0.2); // Bắn lên cao
+                let dz = z + (Math.random() - 0.5) * 1.5;
+                createParticle('#0984e3', x, y, z, dx, dy, dz, 800, 0.03); // Hạt màu xanh biển
+            }
+        }
+
+        function spawnSmoke(x, y, z) {
+            let dx = x + (Math.random() - 0.5) * 0.4;
+            let dy = y + Math.random() * 1.5 + 0.5; // Khói bay lên cao
+            let dz = z + (Math.random() - 0.5) * 0.4;
+            createParticle('#ffffff', x, y, z, dx, dy, dz, 1200, 0.06); // Hạt trắng lớn
+        }
+
+        function spawnFire(x, y, z) {
+            let dx = x + (Math.random() - 0.5) * 0.5;
+            let dy = y + Math.random() * 1.0 + 0.2; // Lửa cháy thấp hơn khói
+            let dz = z + (Math.random() - 0.5) * 0.5;
+            let color = Math.random() > 0.5 ? '#ff7675' : '#fdcb6e'; // Cam hoặc vàng
+            createParticle(color, x, y, z, dx, dy, dz, 800, 0.04);
+        }
+
+        function triggerExplosion(x, y, z) {
+            // Vụ nổ 80 hạt đủ màu bắn đa hướng
+            for(let i=0; i<80; i++) {
+                let dx = x + (Math.random() - 0.5) * 4;
+                let dy = y + (Math.random() - 0.2) * 4;
+                let dz = z + (Math.random() - 0.5) * 4;
+                let colors = ['#ff7675', '#fdcb6e', '#ffffff', '#e17055'];
+                let color = colors[Math.floor(Math.random() * colors.length)];
+                createParticle(color, x, y, z, dx, dy, dz, 1000, 0.05);
+            }
+        }
+
+        // --- 4. KỊCH BẢN THÍ NGHIỆM CHÍNH ---
         function runExperiment() {
-            // Xóa sạch dấu vết của thí nghiệm cũ (Sạch 100% chống kẹt lỗi)
-            container.innerHTML = '';
+            container.innerHTML = ''; // Dọn dẹp
+            if (particleInterval) clearInterval(particleInterval);
             soundSizzle.pause();
             soundSizzle.currentTime = 0;
 
-            // Tạo viên Natri mới toanh
+            // Tạo viên Natri
             const na = document.createElement('a-sphere');
             na.setAttribute('radius', '0.08');
-            na.setAttribute('color', '#bdc3c7'); // Màu bạc ban đầu
-            na.setAttribute('position', '0 1.5 0'); // Thả từ trên cao
-            
-            // Tạo cụm phun khói gắn liền với viên Natri
-            const effect = document.createElement('a-entity');
-            effect.setAttribute('position', '0 0 0');
-            na.appendChild(effect);
-
-            // Đưa viên Natri vào chậu
+            na.setAttribute('color', '#bdc3c7'); // Màu bạc
+            na.setAttribute('position', '0 1.5 0'); // Rơi từ trên cao
             container.appendChild(na);
 
-            // CÁC GIAI ĐOẠN PHẢN ỨNG HÓA HỌC:
             setTimeout(() => {
-                
-                // BƯỚC 1: Rơi xuống mặt nước (0.8s)
-                na.setAttribute('animation__fall', 'property: position; to: 0 0.18 0; dur: 800; easing: easeInQuad');
+                // BƯỚC 1: Na rơi chạm mặt nước (Tọa độ y = 0.35)
+                na.setAttribute('animation__fall', 'property: position; to: 0 0.35 0; dur: 800; easing: easeInQuad');
                 
                 setTimeout(() => {
-                    // BƯỚC 2: Bốc khói trắng & Chạy hỗn loạn trên mặt nước (2.5s)
-                    soundSizzle.play(); // Kêu xèo xèo
+                    // BƯỚC 2: CHẠM NƯỚC -> NƯỚC VĂNG TUNG TÓE
+                    let currentPos = na.object3D.position;
+                    splashWater(currentPos.x, currentPos.y, currentPos.z);
+                    soundSizzle.play(); // Tiếng xèo xèo
                     
-                    // Chạy zig-zag
-                    na.setAttribute('animation__movex', 'property: position.x; from: -0.7; to: 0.7; dir: alternate; dur: 250; loop: true; easing: easeInOutSine');
-                    na.setAttribute('animation__movez', 'property: position.z; from: -0.7; to: 0.7; dir: alternate; dur: 350; loop: true; easing: easeInOutSine');
+                    // Na chạy hỗn loạn trên mặt nước
+                    na.setAttribute('animation__movex', 'property: position.x; from: -0.8; to: 0.8; dir: alternate; dur: 350; loop: true; easing: easeInOutSine');
+                    na.setAttribute('animation__movez', 'property: position.z; from: -0.8; to: 0.8; dir: alternate; dur: 450; loop: true; easing: easeInOutSine');
                     
-                    // Bắn hạt khói trắng
-                    effect.setAttribute('particle-system', 'color: #ffffff, #cccccc; particleCount: 300; velocityValue: 0 1 0; size: 0.3, 0; maxAge: 1');
+                    let isBurning = false;
 
+                    // Liên tục xả khói (và lửa nếu đang cháy)
+                    particleInterval = setInterval(() => {
+                        let pos = na.object3D.position;
+                        spawnSmoke(pos.x, pos.y, pos.z);
+                        spawnSmoke(pos.x, pos.y, pos.z);
+                        
+                        if(isBurning) {
+                            spawnFire(pos.x, pos.y, pos.z);
+                            spawnFire(pos.x, pos.y, pos.z);
+                            spawnFire(pos.x, pos.y, pos.z); // Lửa dày đặc hơn
+                        }
+                    }, 40); // Cứ 40 mili-giây tạo ra hạt mới
+
+                    // BƯỚC 3: BỐC CHÁY (Sau 2.5 giây chạy)
                     setTimeout(() => {
-                        // BƯỚC 3: Tỏa nhiệt quá mức, bốc cháy (Màu đỏ cam) (1.5s)
-                        na.setAttribute('color', '#ff4757');
-                        effect.setAttribute('particle-system', 'color: #ff9f43, #ff4757; particleCount: 800; velocityValue: 0 1.5 0; size: 0.6, 0.1; maxAge: 0.8');
+                        isBurning = true;
+                        na.setAttribute('color', '#ff4757'); // Viên Na nóng đỏ
+                    }, 2500);
 
-                        setTimeout(() => {
-                            // BƯỚC 4: Phát nổ (Bùm)
-                            soundSizzle.pause();
-                            soundBoom.play();
+                    // BƯỚC 4: PHÁT NỔ (Sau 1.5 giây cháy)
+                    setTimeout(() => {
+                        clearInterval(particleInterval); // Dừng tạo khói/lửa
+                        soundSizzle.pause();
+                        soundBoom.play(); // Tiếng bùm
+                        
+                        let finalPos = na.object3D.position;
+                        na.parentNode.removeChild(na); // Viên Na biến mất
+                        triggerExplosion(finalPos.x, finalPos.y, finalPos.z); // Bắn nổ tung tóe
+                        
+                        // Lặp lại thí nghiệm sau 3 giây
+                        setTimeout(runExperiment, 3000);
+                    }, 4000); // Tổng thời gian từ lúc chạm nước đến lúc nổ là 4 giây
 
-                            na.setAttribute('visible', 'false'); // Viên Na tan rã
-                            
-                            // Tạo khối lửa nổ ngay tại vị trí hiện tại
-                            const currentPos = na.getAttribute('position');
-                            const explosion = document.createElement('a-entity');
-                            explosion.setAttribute('position', currentPos);
-                            explosion.setAttribute('particle-system', 'color: #ffffff, #feca57, #ff4757; particleCount: 2500; velocityValue: 0 4 0; size: 1.5, 0; maxAge: 1; distribution: sphere');
-                            
-                            container.appendChild(explosion);
-                            
-                            // BƯỚC 5: Dọn dẹp & Lặp lại chu kì
-                            setTimeout(() => {
-                                runExperiment(); // Tự động bắt đầu lại từ đầu
-                            }, 3000); // 3 giây sau vụ nổ
-
-                        }, 1500); // Cháy được 1.5s thì nổ
-                    }, 2500); // Bốc khói 2.5s thì cháy
-                }, 800); // Rơi trong 0.8s
-            }, 50); // Chờ trình duyệt load hình ảnh rồi mới thả
+                }, 800); // Thời gian rơi 0.8s
+            }, 50);
         }
     </script>
 </body>
