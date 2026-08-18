@@ -2,149 +2,83 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>VR Hóa Học: Thí nghiệm nổ Natri</title>
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://unpkg.com/aframe-environment-component@1.3.3/dist/aframe-environment-component.min.js"></script>
+    <title>Mô Phỏng Na + H2O (Tự Lặp)</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-particle-system-component@1.1.3/dist/aframe-particle-system-component.min.js"></script>
-    <style>
-        #startUI {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); z-index: 999;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            font-family: sans-serif; color: white; text-align: center; padding: 20px;
-        }
-        button {
-            padding: 15px 40px; font-size: 22px; font-weight: bold; background: #ff4757; 
-            color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 20px;
-        }
-    </style>
 </head>
 <body>
-
-    <div id="startUI">
-        <h1 style="color: #ff6b81;">CẢNH BÁO: THÍ NGHIỆM GÂY NỔ</h1>
-        <p>Thả cục Natri (Na) cỡ lớn vào chậu nước.</p>
-        <p style="color: yellow; max-width: 400px;">Hướng dẫn: Nhấn "Bắt đầu", sau đó nhấn ngay vào biểu tượng kính VR ở góc dưới màn hình và lắp điện thoại vào kính.</p>
-        <button id="startBtn">BẮT ĐẦU XEM</button>
-        <h2 id="countdownText" style="display: none; color: #2ed573; margin-top: 20px;">Thí nghiệm sẽ bắt đầu sau: 10 giây...</h2>
-    </div>
-
     <a-scene>
-        <a-assets>
-            <audio id="snd-splash" src="https://actions.google.com/sounds/v1/water/water_splash.ogg" preload="auto"></audio>
-            <audio id="snd-fizz" src="https://actions.google.com/sounds/v1/water/boiling_water.ogg" preload="auto"></audio>
-            <audio id="snd-boom" src="https://actions.google.com/sounds/v1/weapons/explosion_layer.ogg" preload="auto"></audio>
-        </a-assets>
+        <a-sky color="#87CEEB"></a-sky>
+        
+        <a-plane position="0 0 -2" rotation="-90 0 0" width="10" height="10" color="#7f8c8d"></a-plane>
 
-        <a-entity environment="preset: starry; groundColor: #111; grid: none;"></a-entity>
+        <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
+        <a-light type="directional" position="-1 2 1" intensity="0.5"></a-light>
 
-        <a-entity position="0 1.6 2.5">
-            <a-camera look-controls></a-camera>
+        <a-entity position="0 0.5 -2">
+            <a-cylinder position="0 0 0" radius="1.2" height="0.4" color="#ffffff" opacity="0.3" material="side: double"></a-cylinder>
+            <a-cylinder position="0 0.1 0" radius="1.15" height="0.2" color="#3498db" opacity="0.8"></a-cylinder>
+            
+            <a-sphere id="sodium" position="0 1.5 0" radius="0.1" color="#bdc3c7"></a-sphere>
+
+            <a-entity id="reactionEffect" position="0 0.2 0" 
+                      particle-system="color: #ffa502,#ff7f50; size: 0.5, 0; velocityValue: 0 1 0; particleCount: 0; maxAge: 1; distribution: sphere; radius: 0.2">
+            </a-entity>
         </a-entity>
 
-        <a-cylinder position="0 0.5 0" radius="1.5" height="1" color="#353b48"></a-cylinder>
-
-        <a-cylinder position="0 1.2 0" radius="1.2" height="0.4" color="#ffffff" opacity="0.2" material="side: double; transparent: true"></a-cylinder>
-        <a-cylinder position="0 1.15 0" radius="1.15" height="0.3" color="#0984e3" opacity="0.7"></a-cylinder>
-
-        <a-sphere id="sodium" position="0 4 0" radius="0.25" color="#bdc3c7" visible="false"></a-sphere>
-
-        <a-entity id="smokeEffect" position="0 1.3 0"></a-entity>
-        <a-entity id="explosionEffect" position="0 1.3 0"></a-entity>
-        <a-entity id="splashEffect" position="0 1.3 0"></a-entity>
-
+        <a-camera position="0 1.6 0"></a-camera>
     </a-scene>
 
     <script>
-        document.getElementById('startBtn').addEventListener('click', function() {
-            const btn = document.getElementById('startBtn');
-            const countdownEl = document.getElementById('countdownText');
-            const ui = document.getElementById('startUI');
-            
-            // "Mở khóa" âm thanh trên trình duyệt di động
-            const sSplash = document.getElementById('snd-splash');
-            const sFizz = document.getElementById('snd-fizz');
-            const sBoom = document.getElementById('snd-boom');
-            sSplash.play(); sSplash.pause();
-            sFizz.play(); sFizz.pause();
-            sBoom.play(); sBoom.pause();
+        const na = document.getElementById('sodium');
+        const effect = document.getElementById('reactionEffect');
 
-            // Ẩn nút, hiện đếm ngược 10 giây để người dùng kịp đeo kính VR
-            btn.style.display = 'none';
-            countdownEl.style.display = 'block';
-            let timeLeft = 10;
-            
-            const timer = setInterval(() => {
-                timeLeft--;
-                countdownEl.innerText = `Thí nghiệm sẽ bắt đầu sau: ${timeLeft} giây... (Hãy đeo kính vào!)`;
-                
-                if(timeLeft <= 0) {
-                    clearInterval(timer);
-                    ui.style.display = 'none'; // Ẩn hoàn toàn UI để xem VR
-                    startExperiment();
-                }
-            }, 1000);
-        });
+        function runExperiment() {
+            // Xóa các hiệu ứng chuyển động cũ
+            na.removeAttribute('animation__fall');
+            na.removeAttribute('animation__moveX');
+            na.removeAttribute('animation__moveZ');
 
-        function startExperiment() {
-            const na = document.getElementById('sodium');
-            const smoke = document.getElementById('smokeEffect');
-            const explosion = document.getElementById('explosionEffect');
-            const splash = document.getElementById('splashEffect');
-            const sSplash = document.getElementById('snd-splash');
-            const sFizz = document.getElementById('snd-fizz');
-            const sBoom = document.getElementById('snd-boom');
-
-            // 1. Thả mẩu Natri rơi xuống
+            // Reset trạng thái mẩu Natri lên cao
+            na.setAttribute('position', '0 1.5 0');
+            na.setAttribute('color', '#bdc3c7');
             na.setAttribute('visible', 'true');
-            na.setAttribute('animation__fall', 'property: position; from: 0 4 0; to: 0 1.3 0; dur: 1200; easing: easeInCubic');
+            
+            // Reset Khói lửa
+            effect.setAttribute('particle-system', 'particleCount: 0; color: #ffa502,#ff7f50; velocityValue: 0 1 0; size: 0.5, 0; maxAge: 1;');
 
+            // BƯỚC 1: Na rơi xuống nước
             setTimeout(() => {
-                // 2. Chạm nước: Tiếng tủm, nước văng lên
-                sSplash.currentTime = 0; sSplash.play();
-                splash.setAttribute('particle-system', 'color: #74b9ff,#ffffff; size: 0.8; velocityValue: 0 3 0; particleCount: 500; maxAge: 0.8; duration: 0.5; distribution: sphere; radius: 0.5');
-
+                na.setAttribute('animation__fall', 'property: position; to: 0 0.2 0; dur: 800; easing: easeInQuad');
+                
+                // BƯỚC 2: Phản ứng cháy và chạy vòng quanh
                 setTimeout(() => {
-                    // 3. Bắt đầu phản ứng xèo xèo
-                    sFizz.volume = 0.7; sFizz.play();
-                    na.setAttribute('color', '#ff4757'); // Nóng đỏ
-                    smoke.setAttribute('particle-system', 'color: #eeeeee,#cccccc; size: 1; velocityValue: 0 2 0; particleCount: 300; maxAge: 1; radius: 0.2');
+                    na.setAttribute('color', '#ff6b81');
+                    na.setAttribute('animation__moveX', 'property: position.x; from: -0.5; to: 0.5; dir: alternate; dur: 150; loop: 15');
+                    na.setAttribute('animation__moveZ', 'property: position.z; from: -0.5; to: 0.5; dir: alternate; dur: 220; loop: 10');
+                    effect.setAttribute('particle-system', 'particleCount: 200');
 
-                    // Cho Natri chạy lung tung trên mặt chậu
-                    let moveInterval = setInterval(() => {
-                        let rx = (Math.random() - 0.5) * 1.8;
-                        let rz = (Math.random() - 0.5) * 1.8;
-                        na.setAttribute('animation__move', `property: position; to: ${rx} 1.3 ${rz}; dur: 300; easing: linear`);
-                        smoke.setAttribute('position', `${rx} 1.3 ${rz}`);
-                        splash.setAttribute('position', `${rx} 1.3 ${rz}`);
-                    }, 300);
-
-                    // 4. Phát nổ sau 5 giây phản ứng
+                    // BƯỚC 3: Phát nổ
                     setTimeout(() => {
-                        clearInterval(moveInterval);
-                        sFizz.pause();
-                        sBoom.volume = 1.0; sBoom.currentTime = 0; sBoom.play();
-
+                        effect.setAttribute('particle-system', 'color: #ffffff,#f1c40f; particleCount: 1500; velocityValue: 0 3 0; size: 1, 0; maxAge: 1.5;');
                         na.setAttribute('visible', 'false');
-                        smoke.removeAttribute('particle-system'); // Tắt khói nhỏ
 
-                        // Bùm! Hiệu ứng lửa đỏ/vàng cực lớn và nước văng tung toé
-                        explosion.setAttribute('position', smoke.getAttribute('position'));
-                        explosion.setAttribute('particle-system', 'color: #ff0000,#ff9f43,#ffffff; size: 2.5; velocityValue: 0 8 0; particleCount: 4000; maxAge: 1.5; duration: 1.5; type: 3; distribution: sphere; radius: 0.8');
-                        
-                        splash.setAttribute('particle-system', 'color: #0984e3,#ffffff; size: 1.5; velocityValue: 0 6 0; particleCount: 2000; maxAge: 1.2; duration: 1.2; distribution: sphere; radius: 1');
-
-                        // 5. Kết thúc, reset sau khi nổ xong
+                        // BƯỚC 4: Dọn dẹp và lặp lại
                         setTimeout(() => {
-                            location.reload(); // Tự động load lại web để có thể xem lại
-                        }, 5000);
+                            effect.setAttribute('particle-system', 'particleCount: 0');
+                            // Nghỉ 2 giây rồi lặp lại từ đầu
+                            setTimeout(runExperiment, 2000); 
+                        }, 2000);
 
-                    }, 5000); // Thời gian sôi xèo xèo
-
-                }, 600); // Đợi nước văng xong thì xèo xèo
-
-            }, 1200); // Thời gian rơi tự do
+                    }, 2500); // Thời gian chạy trên nước
+                }, 800); // Đợi rơi xong
+            }, 1000); // Đợi 1 giây trước khi bắt đầu rơi
         }
+
+        // Đợi 3D load xong thì gọi vòng lặp
+        document.querySelector('a-scene').addEventListener('loaded', () => {
+            runExperiment();
+        });
     </script>
 </body>
 </html>
