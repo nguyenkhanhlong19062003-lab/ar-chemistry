@@ -2,83 +2,153 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Mô Phỏng Na + H2O (Tự Lặp)</title>
+    <title>VR Hóa Học: Na + H2O (Âm thanh & Lửa)</title>
+    <!-- Thư viện A-Frame -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <!-- Thư viện Particle System (Khói, lửa, nổ) -->
     <script src="https://unpkg.com/aframe-particle-system-component@1.1.3/dist/aframe-particle-system-component.min.js"></script>
+    
+    <style>
+        /* CSS cho màn hình chờ để mở khóa âm thanh */
+        #startScreen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        #startBtn {
+            padding: 20px 40px; font-size: 24px; font-weight: bold; background: #ff4757; 
+            color: white; border: none; border-radius: 10px; cursor: pointer;
+        }
+    </style>
 </head>
 <body>
-    <a-scene>
-        <a-sky color="#87CEEB"></a-sky>
-        
-        <a-plane position="0 0 -2" rotation="-90 0 0" width="10" height="10" color="#7f8c8d"></a-plane>
 
-        <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
+    <!-- Màn hình chạm để bắt đầu (BẮT BUỘC ĐỂ BẬT ĐƯỢC ÂM THANH TRÊN TRÌNH DUYỆT) -->
+    <div id="startScreen">
+        <h2 style="color: white; font-family: sans-serif; text-align: center;">Thí nghiệm: Natri tác dụng với Nước</h2>
+        <p style="color: #ccc; font-family: sans-serif; text-align: center; margin-bottom: 30px;">(Hãy đeo tai nghe để có trải nghiệm tốt nhất)</p>
+        <button id="startBtn">CHẠM ĐỂ BẮT ĐẦU & VÀO VR</button>
+    </div>
+
+    <a-scene vr-mode-ui="enabled: true">
+        
+        <!-- Tải trước âm thanh từ thư viện của Google -->
+        <a-assets>
+            <audio id="sound-sizzle" src="https://actions.google.com/sounds/v1/water/simmering_water.ogg" preload="auto"></audio>
+            <audio id="sound-explosion" src="https://actions.google.com/sounds/v1/weapons/explosion_crunch.ogg" preload="auto"></audio>
+        </a-assets>
+
+        <a-sky color="#87CEEB"></a-sky>
+        <!-- Bàn thí nghiệm -->
+        <a-plane position="0 0 -2" rotation="-90 0 0" width="10" height="10" color="#576574"></a-plane>
+
+        <a-light type="ambient" color="#ffffff" intensity="0.9"></a-light>
         <a-light type="directional" position="-1 2 1" intensity="0.5"></a-light>
 
+        <!-- Trạm thí nghiệm (Cách mắt 2 mét) -->
         <a-entity position="0 0.5 -2">
-            <a-cylinder position="0 0 0" radius="1.2" height="0.4" color="#ffffff" opacity="0.3" material="side: double"></a-cylinder>
-            <a-cylinder position="0 0.1 0" radius="1.15" height="0.2" color="#3498db" opacity="0.8"></a-cylinder>
             
-            <a-sphere id="sodium" position="0 1.5 0" radius="0.1" color="#bdc3c7"></a-sphere>
+            <!-- Chậu thủy tinh -->
+            <a-cylinder position="0 0 0" radius="1.2" height="0.4" color="#ffffff" opacity="0.2" material="side: double; transparent: true"></a-cylinder>
+            
+            <!-- Nước (Đã sửa lỗi Z-fighting bằng cách dùng mặt phẳng hình tròn thay vì khối trụ) -->
+            <a-circle position="0 0.18 0" rotation="-90 0 0" radius="1.18" color="#3498db" opacity="0.85" material="metalness: 0.3; roughness: 0.1"></a-circle>
+            
+            <!-- Bộ phát âm thanh đặt tại chậu nước -->
+            <a-entity id="audioController" sound="src: #sound-sizzle; loop: false; volume: 3"></a-entity>
 
-            <a-entity id="reactionEffect" position="0 0.2 0" 
-                      particle-system="color: #ffa502,#ff7f50; size: 0.5, 0; velocityValue: 0 1 0; particleCount: 0; maxAge: 1; distribution: sphere; radius: 0.2">
-            </a-entity>
+            <!-- Mẩu Natri -->
+            <a-sphere id="sodium" position="0 1.5 0" radius="0.08" color="#bdc3c7">
+                <!-- Hiệu ứng dính liền với mẩu Natri -->
+                <a-entity id="reactionEffect" position="0 0 0" particle-system="particleCount: 0"></a-entity>
+            </a-sphere>
+
         </a-entity>
 
         <a-camera position="0 1.6 0"></a-camera>
     </a-scene>
 
     <script>
+        const startScreen = document.getElementById('startScreen');
+        const startBtn = document.getElementById('startBtn');
         const na = document.getElementById('sodium');
         const effect = document.getElementById('reactionEffect');
+        const audioCtrl = document.getElementById('audioController');
+
+        let isRunning = false;
+
+        // Bắt sự kiện người dùng chạm vào nút Bắt đầu
+        startBtn.addEventListener('click', () => {
+            startScreen.style.display = 'none'; // Ẩn màn hình chờ
+            
+            // Ép trình duyệt mở khóa âm thanh bằng cách phát một đoạn im lặng
+            audioCtrl.components.sound.playSound();
+            audioCtrl.components.sound.stopSound();
+
+            if (!isRunning) {
+                isRunning = true;
+                // Đợi 1 giây rồi bắt đầu vòng lặp thí nghiệm
+                setTimeout(runExperiment, 1000); 
+            }
+        });
 
         function runExperiment() {
-            // Xóa các hiệu ứng chuyển động cũ
+            // Xóa hoạt ảnh cũ
             na.removeAttribute('animation__fall');
             na.removeAttribute('animation__moveX');
             na.removeAttribute('animation__moveZ');
 
-            // Reset trạng thái mẩu Natri lên cao
-            na.setAttribute('position', '0 1.5 0');
-            na.setAttribute('color', '#bdc3c7');
+            // RESET TRẠNG THÁI BAN ĐẦU
+            na.setAttribute('position', '0 1.5 0'); // Bay lên cao
+            na.setAttribute('color', '#bdc3c7'); // Màu bạc
             na.setAttribute('visible', 'true');
+            effect.setAttribute('particle-system', 'particleCount: 0'); // Tắt khói
+
+            // GIAI ĐOẠN 1: RƠI XUỐNG NƯỚC (0.8 giây)
+            na.setAttribute('animation__fall', 'property: position; to: 0 0.18 0; dur: 800; easing: easeInQuad');
             
-            // Reset Khói lửa
-            effect.setAttribute('particle-system', 'particleCount: 0; color: #ffa502,#ff7f50; velocityValue: 0 1 0; size: 0.5, 0; maxAge: 1;');
-
-            // BƯỚC 1: Na rơi xuống nước
             setTimeout(() => {
-                na.setAttribute('animation__fall', 'property: position; to: 0 0.2 0; dur: 800; easing: easeInQuad');
-                
-                // BƯỚC 2: Phản ứng cháy và chạy vòng quanh
-                setTimeout(() => {
-                    na.setAttribute('color', '#ff6b81');
-                    na.setAttribute('animation__moveX', 'property: position.x; from: -0.5; to: 0.5; dir: alternate; dur: 150; loop: 15');
-                    na.setAttribute('animation__moveZ', 'property: position.z; from: -0.5; to: 0.5; dir: alternate; dur: 220; loop: 10');
-                    effect.setAttribute('particle-system', 'particleCount: 200');
+                // GIAI ĐOẠN 2: CHẠY & BỐC KHÓI TRẮNG (2 giây)
+                // Phát tiếng xèo xèo
+                audioCtrl.setAttribute('sound', 'src: #sound-sizzle; loop: true; volume: 4');
+                audioCtrl.components.sound.playSound();
 
-                    // BƯỚC 3: Phát nổ
+                // Tạo chuyển động chạy hỗn loạn trên mặt nước
+                na.setAttribute('animation__moveX', 'property: position.x; from: -0.8; to: 0.8; dir: alternate; dur: 250; loop: true; easing: easeInOutSine');
+                na.setAttribute('animation__moveZ', 'property: position.z; from: -0.8; to: 0.8; dir: alternate; dur: 320; loop: true; easing: easeInOutSine');
+                
+                // Khói trắng
+                effect.setAttribute('particle-system', 'color: #ffffff, #cccccc; particleCount: 300; velocityValue: 0 1 0; size: 0.3, 0; maxAge: 1');
+
+                setTimeout(() => {
+                    // GIAI ĐOẠN 3: BỐC CHÁY (Lửa vàng đặc trưng của Na) (1.5 giây)
+                    na.setAttribute('color', '#ff4757'); // Viên Na nóng đỏ
+                    effect.setAttribute('particle-system', 'color: #ff9f43, #ff4757; particleCount: 800; velocityValue: 0 1.5 0; size: 0.6, 0.1; maxAge: 0.8');
+
                     setTimeout(() => {
-                        effect.setAttribute('particle-system', 'color: #ffffff,#f1c40f; particleCount: 1500; velocityValue: 0 3 0; size: 1, 0; maxAge: 1.5;');
+                        // GIAI ĐOẠN 4: PHÁT NỔ
+                        // Dừng tiếng xèo xèo, phát tiếng nổ
+                        audioCtrl.components.sound.stopSound();
+                        audioCtrl.setAttribute('sound', 'src: #sound-explosion; loop: false; volume: 8');
+                        audioCtrl.components.sound.playSound();
+
+                        // Hiệu ứng nổ lớn
+                        effect.setAttribute('particle-system', 'color: #ffffff, #feca57, #ff4757; particleCount: 2500; velocityValue: 0 4 0; size: 1.5, 0; maxAge: 1; distribution: sphere');
+                        
+                        // Viên Na biến mất
                         na.setAttribute('visible', 'false');
 
-                        // BƯỚC 4: Dọn dẹp và lặp lại
+                        // GIAI ĐOẠN 5: DỌN DẸP & LẶP LẠI
                         setTimeout(() => {
-                            effect.setAttribute('particle-system', 'particleCount: 0');
-                            // Nghỉ 2 giây rồi lặp lại từ đầu
-                            setTimeout(runExperiment, 2000); 
-                        }, 2000);
+                            effect.setAttribute('particle-system', 'particleCount: 0'); // Tắt hạt
+                            // Nghỉ 3 giây trước khi tự động lặp lại thí nghiệm
+                            setTimeout(runExperiment, 3000); 
+                        }, 1500); // Đợi hạt nổ bay hết (1.5s)
 
-                    }, 2500); // Thời gian chạy trên nước
-                }, 800); // Đợi rơi xong
-            }, 1000); // Đợi 1 giây trước khi bắt đầu rơi
+                    }, 1500); // Đốt cháy trong 1.5s rồi nổ
+                }, 2000); // Bốc khói trong 2s rồi mới cháy
+            }, 800); // Thời gian viên Na rơi
         }
-
-        // Đợi 3D load xong thì gọi vòng lặp
-        document.querySelector('a-scene').addEventListener('loaded', () => {
-            runExperiment();
-        });
     </script>
 </body>
 </html>
